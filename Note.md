@@ -32,7 +32,7 @@
 
 * T-App，无需赘言
 
-    <img src="D:\Document\doc\TAPL\assets\image-20231206223007907.png" alt="image-20231206223007907" style="zoom: 50%;" />
+    <img src=".\assets\image-20231206223007907.png" alt="image-20231206223007907" style="zoom: 50%;" />
 
     
 
@@ -121,11 +121,39 @@
 * （**重要**）这样的 translation func 分为三个部分
 
     * 针对 types 的
-    * 针对 subtyping 的
-    * 针对 typing 的
+    * 针对 subtyping derivations 的
+    * 针对 typing derivations 的
 
-* **针对 types 的**，将 $\lambda_{<:}$ 中的特殊类型移除，这一过程是递归的
+* **针对 types 的**
 
+    * 将 $\lambda_{<:}$ 中的特殊类型移除，这一过程是递归的
+    * 对于 $\lambda_{<:}$ 中的类型 $T$，$[\![T]\!]$ 的结果是 $\lambda_{\to}$ 中的类型
     * $[\![Top]\!]=Unit$
     * $[\![T_1\to T_2]\!]=[\![T_1]\!]\to[\![T_2]\!]$ 等等
+
+* **针对 subtyping derivations 的**
+
+    * 插入 Runtime Coercion，有些类似于编译原理中文法的动作符号
+    * 引入记号 $C$，表示一棵 derivation tree。记号 $C::T<:U$ 表示：在 deri tree $C$ 下，可以推出 $T<:U$
+    * $[\![C]\!]$ 的结果是一个 $\lambda_{\to}$ 中的函数，也就是之前提到的 Runtime Coercion 
+    * <img src=".\assets\image-20231208225255963.png" alt="image-20231208225255963" style="zoom: 45%;" /> 
+    * 注意右式中，部分 $[\![\cdot]\!]$ 是针对 types 的，部分是针对 subtyping 的
+    * 通过以上 translation 规则做归纳，得出**重要 Lemma**：If $C::T<:U$, then $\vdash[\![C]\!]:[\![T]\!]\to[\![U]\!]$
+        * 可以看出 $[\![C]\!]$ 就是一个 Runtime Coercion。若 $C::T<:U$，将 $[\![C]\!]$ 记做 $[\![T<:U]\!]$，可以给出一些例子：
+        * `[[Int <: String]] = intToString`
+        * `[[Bool <: Int]] = λb:Bool. if b then 1 else 0`
+        * 参考下文的 4 式理解
+
+* **针对 typing derivations 的**
+    * 只是简单地翻译 term（如果有 subsumption，同时也插入 runtime coercion）
+    * 同样有记号 $D$ 表示 deri tree
+    * $[\![D]\!]$ 结果是一个 $\lambda_{\to}$ 中的 term
+    * <img src="./assets/image-20231208232027157.png" alt="image-20231208232027157" style="zoom:60%;" /><img src="./assets/image-20231208231955470.png" alt="image-20231208231955470" style="zoom:60%;" /> 
+    * （书上有个 typo，上方 2 式的 conclusion 少写了一个 $t_2$ ）
+    * **重要 Lemma**：If $D::\Gamma\vdash t:T$, then $\vdash[\![\Gamma]\!]:[\![D]\!]:[\![T]\!]$
+        * 可以看出 $[\![D]\!]$ 就是一个 term
+    
+    * 关注 4 式，可以看到，有向上转型发生时，不止翻译了 term 为 $[\![D]\!]$，还插入了一个 runtime coercion $[\![C]\!]$
+    * 针对 typing derivations 的翻译也叫 *Penn Translation*
+    
 
