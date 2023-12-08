@@ -44,8 +44,17 @@
 
 * Subsumption rule, `Gamma|-t:S  S<:T  /  Gamma|-t:T `
 
-    * upcast
-    * 子类型是限制更多的类型，例如 `{x:int, y:int} <: {x:int}`
+    * Upcast
+
+* Subtype (Subset sematic)
+
+    * 子类型是包含 closed value 更少的类型（前提是这两个类型的 closed value set 有包含关系），例如 `{x:int, y:int} <: {x:int}`
+
+* 比较 Record 和 Variant
+
+    * Record 的 entry 之间取并集，Variant 取交集
+    * 越长的 Record 越是子类型，Variant 反之 
+    * 复习一下 Variant：格式 $\lang l_0 :T_0,\cdots\rang$，其中 $l_i$ 是 label。例如 `type Info = <id:Int, name:String>` 或 `type Color = <Red:(), Green:(), Yellow:()> `，使用的时候用 case 语句模式匹配
 
 * The subtype relation is
 
@@ -65,14 +74,58 @@
 
 * Note: 我们一般不认为 `T1*T2 <: T1`，但却有 `{x:T, y:U} <: {x:T}` 。这是因为 record 类型中每个 entry 都有对应的 key，但 tuple 的 entry 只与 index 相关。
 
-    * 你也不想允许 `(4, 'hello') + 1 == 5` 吧
+    * 你也不想 `(4, 'hello') + 1` 是 well-typed 的吧
 
 * Bottom
 
     * rule: ` / Bot <: T`
     * `Bot` type is empty. There is no closed values of type `Bot`。这是显然的，否则若 value `v : Bot`，那么对于任意 `T` 都有 `v : T`，构造一个反例：`v:int` 并且 `v:string`
     * 允许有 term `t : Bot`，只要这个 `t` 不继续被 evaluate，eg: panic，这样使得 `if x then 1 else panic` 能够有类型 `int`
-    * 会使得 type checker 复杂化。不能直接从 term 推断类型（eg，对于 term `t x`，不能再假定 `t` 是 arrow type，因为也可能是 Bot）
+    * 会使得 type checker 复杂化。不能直接从 term 推断类型（eg，对于上例，不能假定 panic 是 `int`，因为也可能是 `Bot`）
 
-    
+* Ascription / Casting
+
+    * Upcast: Subsumption
+    * Downcast: `Gamma|-t:S  /  t as T : T`，在 Java 和 cpp 中， `t as T` 写作 `(T)t`。这里不做静态类型检查，而是插入 runtime 检查语句
+
+* List
+
+    * Covariant constructor, i.e. `S <: T  /  List S <: List T`
+
+* Reference
+
+    * Invariant constructor, i.e. `S<:T T<:S  /  Ref S <: Ref T`
+        * For ref read: `x = !r`, if `x : T` and `r : Ref S`, then we need `S <: T`
+        * For ref write: `r := x`,  if `x : T` and `r : Ref S`, then we need `T <: S`
+
+    * Source / Readonly Ref / Const Ref: Covariant. `Ref T <: Source T`
+    * Sink /  Writeonly Ref: Contravariant. `Ref T <: Sink T`
+    * 由于 Array 也可以看做一种 Ref, `Array` constructor 也是 invariant 的 
+    * List 是 readonly 的 array，所以它是 covariant 的
+
+
+## 15.5 Coercion Sematic for Subtyping
+
+* 一些反思：
+
+    * `Int <: Float` 在机器表达上不是 subset 关系。一种解决方法是，将字面量 box 成对象，使得 `1` 和 `1.0` 有相同的表示，再在进行运算时 unbox。这会引入运行时开销。
+    * Permutation rule of record 使得 record 的 projection 操作寻址困难，需要线性 search。C++ / Java 等语言均不允许 Permu rule，而是在编译期将 record 编译成 tuple，每个 label 有编译期确定的 offset
+
+* Coercion sematic 是一个 **translation function**，它会：把有 Subtyping 的语言转换为无 Subtyping 的语言，并在合适的地方插入 Runtime  Coercion 语句（例如，类型转换等）
+
+    * TAPL 中选择将 $\lambda_{<:}$ 转换为 $\lambda_{\to}$
+    * 记做 $[\![\cdot]\!]$
+
+    * 这样避免了每次 box/unbox 和 search，因为只在需要的地方插入了 coercion，如类型转换指令
+
+* （**重要**）这样的 translation func 分为三个部分
+
+    * 针对 types 的
+    * 针对 subtyping 的
+    * 针对 typing 的
+
+* **针对 types 的**，将 $\lambda_{<:}$ 中的特殊类型移除，这一过程是递归的
+
+    * $[\![Top]\!]=Unit$
+    * $[\![T_1\to T_2]\!]=[\![T_1]\!]\to[\![T_2]\!]$ 等等
 
