@@ -104,7 +104,7 @@
     * List 是 readonly 的 array，所以它是 covariant 的
 
 
-## 15.5 Coercion Sematic for Subtyping
+## 15.6 Coercion Sematic for Subtyping
 
 * 一些反思：
 
@@ -156,4 +156,84 @@
     * 关注 4 式，可以看到，有向上转型发生时，不止翻译了 term 为 $[\![D]\!]$，还插入了一个 runtime coercion $[\![C]\!]$
     * 针对 typing derivations 的翻译也叫 *Penn Translation*
     
+* **Coherence**
+    * 针对 typing 的 translation func $[\![D]\!]$ 是 coherent 的，iff：$\forall D_1,D_2$ ，若满足 $D_1::\Gamma\vdash t:T $ 并且  $D_2::\Gamma\vdash t:T$，即 conclusion 相同，那么有 $[\![D_1]\!]=[\![D_2]\!]=t$，其中 $t$ 是 $\lambda_{\to}$ 的 term
+    * 复杂类型系统的 coherence 证明是不容易的
+
+
+## 15.7 Intersection and Union Types
+
+* **Intersection type** $T_1\and T_2$，它的 inhabitants 是 $\{t|t\in term_{T_1}\cap term_{T_2}\}$，语义是 both：如果 $t:T_1\and T_2$，那么 $t$ 既是 $T_1$ 也是 $T_2$
+* 性质：
+    * `T1^T2 <: T1, T1^T2 <: T2`
+    * `S<:T1  S<:T2  /  S<:T1^T2`
+    * `S->T1 ^ S->T2  /  S->(T1^T2)`
+        * 如果一个函数既返回 T1 又返回 T2，那么它一定符合返回 $T_1 \and T_2$ 的 context
+* *Finitary Overloading*
+    * 例如，add 函数的类型可以是 `(Nat -> Nat -> Nat) ^ (Float -> Float -> Float)`
+* Intersection type 过于灵活，应用较少
+* **Union type** $T_1\or T_2$，定义反之，取交集。语义是 either
+* 这称为 **Non**-disjoint union type，区别于 disjoint union type，即常见的 Sum type / Variant
+    * Disjoint 的可以使用 case 语句匹配 term 到一个确定的类型。例如 sum type 用 case 匹配 type，variant 用 case 匹配 label
+    * Non-disjoint 的不能使用 case，意味着如果 $t:T_1\or T_2$，针对 t 的类型安全操作只有同时对 $T_1$ 和 $T_2$ 都有定义的操作
+        * C 语言中的 `union` 则不同，它放弃了类型安全保证，由用户手动指定 t 到底是属于 $T_1$ 还是 $T_2$
+
+
+
+# 20. Recursive Types
+
+* 为了描述 `NatList = <nil: Unit, cons: {Nat, NatList}>`
+
+* 这是一个 infinite type，使用 $\mu$ 标记出递归的类型，即 `NatList = μX. <nil: Unit, cons: {Nat, X}>`
+
+    * 语义上，它表示：NatList 是满足方程 `X = <nil: Unit, cons: {Nat, X}>` 的类型
+
+* Hungry Function
+
+    * `Hungry = μX. Nat -> X`
+    * 一个实现：`hun = fix (λf:Nat->Hungry. λ_:Nat. f)`，即 `hun (_:Nat) = hun`
+    * 吃掉无数个 Nat 参数，依然返回 hungry func
+
+* Stream
+
+    * 一种特殊的 hungry func
+    * `Stream = μX. Unit -> {Nat, A}`
+    * 吃掉无数个 unit，每次吃都返回一个 stream，并额外返回出一个 Nat
+
+* Process
+
+    * 可以接受参数的 Stream
+
+    * `Process = μX. Nat -> {Nat, A}`
+
+    * 例如，接下来是一个 process `p`，它将每次接收的参数累加起来
+
+        ```ocaml
+        p : Process =
+          fix (λf:Nat->Process. λacc:Nat. λn:Nat.
+            let newacc = acc + n in
+              {newacc, f newacc}
+          ) 0
+        ```
+
+        注意代码末尾的 `0`，设置了参数 acc 的初值
+
+        有两种操作
+
+        ```ocaml
+        curr : Process->Nat = λp:Process. (p 0).1
+        send : Nat->Process->Process = λn:Nat. λp:Process. (p n).2
+        ```
+
+        注意 `curr` 是传入一个 0 之后再取 tuple 的第 1 项
+
+        那么有
+
+        ```ocaml
+        curr (send 20 (send 10 (send 5 p))) == 35
+        ```
+
+        
+
+
 
